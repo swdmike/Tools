@@ -1,8 +1,9 @@
 ﻿using System;
 using System.IO;
-using System.Security.Cryptography;
 using CsvHelper;
 using Tools.csv;
+using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Configuration;
 
 namespace Tools
 {
@@ -16,68 +17,146 @@ namespace Tools
                 //loadcsv D:\abc
                 if (cmd.StartsWith("loadcsv"))
                 {
-                    var ss = cmd.Split(new char[] {' '}, StringSplitOptions.RemoveEmptyEntries);
-                    if (ss.Length > 1)
-                    {
-                        using (var db = new BarContext())
-                        {
-                            
-                        }
-
-                        /*
-                        var fs = Directory.EnumerateFiles(ss[1]);
-                        foreach (var f in fs)
-                        {
-                            using (var streamReader = File.OpenText(f))
-                            {
-                                var csv = new CsvReader(streamReader);
-                                csv.Read();
-                                csv.ReadHeader();
-                                //股票代码	股票名称	交易日期	新浪行业	新浪概念	新浪地域	开盘价	最高价	最低价	收盘价
-                                //后复权价	前复权价	涨跌幅	成交量	成交额	换手率	流通市值	总市值	是否涨停	是否跌停
-                                //市盈率TTM	市销率TTM	市现率TTM	市净率 MA_5	MA_10	MA_20	MA_30	MA_60
-                                while (csv.Read())
-                                {
-                                    var id = csv.GetField<string>("股票代码");
-                                    var name = csv.GetField<string>("股票名称");
-                                    var day = csv.GetField<DateTime>("交易日期");
-                                    var open = csv.GetField<double>("开盘价");
-                                    var high = csv.GetField<double>("最高价");
-                                    var low = csv.GetField<double>("最低价");
-                                    var close = csv.GetField<double>("收盘价");
-                                    var backwardAdjustedPrice = csv.GetField<double>("后复权价");
-                                    var forwardAdjustedPrice = csv.GetField<double>("前复权价");
-                                    var change = csv.GetField<double>("涨跌幅");
-                                    var volume = csv.GetField<double>("成交量");
-                                    var turnover = csv.GetField<double>("成交额");
-                                    var turnoverRate = csv.GetField<double>("换手率");
-                                    var marketValue = csv.GetField<double>("流通市值");
-                                    var marketCap = csv.GetField<double>("总市值");
-                                    var stopRise = csv.GetField<double>("是否涨停");
-                                    var stopPlummet = csv.GetField<double>("是否跌停");
-                                    var PE = csv.GetField<double>("市盈率");
-                                    var PS = csv.GetField<double>("市销率");
-                                    var PCF = csv.GetField<double>("市现率");
-                                    var PB = csv.GetField<double>("市净率");
-                                    var ma5 = csv.GetField<double>("MA_5");
-                                    var ma10 = csv.GetField<double>("MA_10");
-                                    var ma20 = csv.GetField<double>("MA_20");
-                                    var ma30 = csv.GetField<double>("MA_30");
-                                    var ma60 = csv.GetField<double>("MA_60");
-
-
-                                }
-                            }
-                        }
-                        */
-                    }
+                    LoadCSV(cmd);
                 }
-                Console.WriteLine("loadcsv done.");
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message + Environment.NewLine + ex.StackTrace);
             }
+        }
+
+        private static void LoadCSV(string input)
+        {
+            var ss = input.Split(new char[] {' '}, StringSplitOptions.RemoveEmptyEntries);
+            if (ss.Length <= 1)
+            {
+                return;
+            }
+
+            var dir = new DirectoryInfo(ss[1]);
+            var fs = dir.GetFiles("*.csv");
+            int cnt = 1;
+            var builder = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddXmlFile("app.config", false, true);
+            var configuration = builder.Build();
+            var connectionString = configuration.GetConnectionString("SqliteConnection");
+            using (var connection = new SqliteConnection("Filename=" + connectionString))
+            {
+                connection.Open();
+                using (var transaction = connection.BeginTransaction())
+                {
+                    foreach (var f in fs)
+                    {
+                        Console.WriteLine($"{cnt}/{fs.Length}, {f.Name}");
+                        cnt += 1;
+                        using (var streamReader = File.OpenText(f.FullName))
+                        {
+                            var csv = new CsvReader(streamReader);
+                            csv.Read();
+                            csv.ReadHeader();
+                            while (csv.Read())
+                            {
+                                GetRow(csv, connection);
+                            }
+                        }
+                    }
+
+                    transaction.Commit();
+                }
+
+                connection.Close();
+            }
+
+            Console.WriteLine("loadcsv done.");
+        }
+
+        private static void GetRow(CsvReader row, SqliteConnection connection)
+        {
+            //股票代码	股票名称	交易日期	新浪行业	新浪概念	新浪地域	开盘价	最高价	最低价	收盘价
+            //后复权价	前复权价	涨跌幅	成交量	成交额	换手率	流通市值	总市值	是否涨停	是否跌停
+            //市盈率TTM	市销率TTM	市现率TTM	市净率 MA_5	MA_10	MA_20	MA_30	MA_60
+            var code = row.GetField<string>(0);
+            var name = row.GetField<string>(1);
+            var day = row.GetField<string>(2);
+            var open = row.GetField<double>(6);
+            var high = row.GetField<double>(7);
+            var low = row.GetField<double>(8);
+            var close = row.GetField<double>(9);
+            var backwardAdjustedPrice = row.GetField<double>(10);
+            var forwardAdjustedPrice = row.GetField<double>(11);
+            var change = row.GetField<double>(12);
+            var volume = row.GetField<double>(13);
+            var turnover = row.GetField<double>(14);
+            var turnoverRate = row.GetField<double>(15);
+            var marketCapFlow = row.GetField<double>(16);
+            var marketCap = row.GetField<double>(17);
+            var stopRise = Math.Abs(row.GetField<double>(18) - 1) < 0.1;
+            var stopPlummet = Math.Abs(row.GetField<double>(19) - 1) < 0.1;
+            row.TryGetField<double>(20, out var pe);
+            row.TryGetField<double>(21, out var ps);
+            row.TryGetField<double>(22, out var pcf);
+            row.TryGetField<double>(23, out var pb);
+            row.TryGetField<double>(24, out var ma5);
+            row.TryGetField<double>(25, out var ma10);
+            row.TryGetField<double>(26, out var ma20);
+            row.TryGetField<double>(27, out var ma30);
+            row.TryGetField<double>(28, out var ma60);
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = string.Format(@"INSERT INTO Bars (Code, day, open, high, low, close,
+                backwardAdjustedPrice, forwardAdjustedPrice, change, volume,
+                turnover, turnoverRate, marketCapFlow, marketCap,
+                stopRise, stopPlummet, pe, ps, pcf, pb,
+                ma5, ma10, ma20, ma30, ma60) VALUES(""{0}"",""{1}"",{2},{3},{4},{5},{6},{7},{8},{9},{10},{11},
+{12},{13},""{14}"",""{15}"",{16},{17},{18},{19},{20},{21},{22},{23},{24})",
+                    code, day, open, high, low, close,
+                    backwardAdjustedPrice, forwardAdjustedPrice, change, volume,
+                    turnover, turnoverRate, marketCapFlow, marketCap,
+                    stopRise, stopPlummet, pe, ps, pcf, pb,
+                    ma5, ma10, ma20, ma30, ma60);
+                command.ExecuteNonQuery();
+            }
+        }
+
+        private static void GetRow(CsvReader row, BarContext db)
+        {
+            //股票代码	股票名称	交易日期	新浪行业	新浪概念	新浪地域	开盘价	最高价	最低价	收盘价
+            //后复权价	前复权价	涨跌幅	成交量	成交额	换手率	流通市值	总市值	是否涨停	是否跌停
+            //市盈率TTM	市销率TTM	市现率TTM	市净率 MA_5	MA_10	MA_20	MA_30	MA_60
+            var id = row.GetField<string>(0);
+            var name = row.GetField<string>(1);
+            var day = row.GetField<DateTime>(2);
+            var open = row.GetField<double>(6);
+            var high = row.GetField<double>(7);
+            var low = row.GetField<double>(8);
+            var close = row.GetField<double>(9);
+            var backwardAdjustedPrice = row.GetField<double>(10);
+            var forwardAdjustedPrice = row.GetField<double>(11);
+            var change = row.GetField<double>(12);
+            var volume = row.GetField<double>(13);
+            var turnover = row.GetField<double>(14);
+            var turnoverRate = row.GetField<double>(15);
+            var marketCapFlow = row.GetField<double>(16);
+            var marketCap = row.GetField<double>(17);
+            var stopRise = Math.Abs(row.GetField<double>(18) - 1) < 0.1;
+            var stopPlummet = Math.Abs(row.GetField<double>(19) - 1) < 0.1;
+            row.TryGetField<double>(20, out var pe);
+            row.TryGetField<double>(21, out var ps);
+            row.TryGetField<double>(22, out var pcf);
+            row.TryGetField<double>(23, out var pb);
+            row.TryGetField<double>(24, out var ma5);
+            row.TryGetField<double>(25, out var ma10);
+            row.TryGetField<double>(26, out var ma20);
+            row.TryGetField<double>(27, out var ma30);
+            row.TryGetField<double>(28, out var ma60);
+            var bar = new Bar(id, day, open, high, low, close,
+                backwardAdjustedPrice, forwardAdjustedPrice, change, volume,
+                turnover, turnoverRate, marketCapFlow, marketCap,
+                stopRise, stopPlummet, pe, ps, pcf, pb,
+                ma5, ma10, ma20, ma30, ma60);
+            db.Bars.Add(bar);
         }
     }
 }

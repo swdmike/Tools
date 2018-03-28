@@ -1,33 +1,71 @@
 ﻿using System;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Tools.csv
 {
     public class Bar
     {
-        public string Id { get; set; }
-        public DateTime Day { get; set; }
-        public double Open { get; set; }
-        public double High { get; set; }
-        public double Low { get; set; }
-        public double Close { get; set; }
-        public double BackwardAdjustedPrice { get; set; }
-        public double ForwardAdjustedPrice { get; set; }
-        public double Change { get; set; }
-        public double Volume { get; set; }
-        public double Turnover { get; set; }
-        public double TurnoverRate { get; set; }
-        public double MarketCapFlow { get; set; }
-        public double MarketCap { get; set; }
-        public bool StopRise { get; set; }
-        public bool StopPlummet { get; set; }
-        public double PE { get; set; }
-        public double PS { get; set; }
-        public double PCF { get; set; }
-        public double PB { get; set; }
-        public double MA_5 { get; set; }
-        public double MA_10 { get; set; }
-        public double MA_20 { get; set; }
-        public double MA_30 { get; set; }
-        public double MA_60 { get; set; }
+        [Key] //主键 
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)] //设置自增
+        public int Id { get; set; }
+        public string Code { get; }
+        public DateTime Day { get; }
+        public double Open { get; }
+        public double High { get; }
+        public double Low { get; }
+        public double Close { get; }
+        public double BackwardAdjustedPrice { get; }
+        public double ForwardAdjustedPrice { get; }
+        public double Change { get; }
+        public double Volume { get; }
+        public double Turnover { get; }
+        public double TurnoverRate { get; }
+        public double MarketCapFlow { get; }
+        public double MarketCap { get; }
+        public bool StopRise { get; }
+        public bool StopPlummet { get; }
+        public double PE { get; }
+        public double PS { get; }
+        public double PCF { get; }
+        public double PB { get; }
+        public double Ma5 { get; }
+        public double Ma10 { get; }
+        public double Ma20 { get; }
+        public double Ma30 { get; }
+        public double Ma60 { get; }
+
+        public Bar(string code, DateTime day, double open, double high, double low, double close,
+            double backwardAdjustedPrice, double forwardAdjustedPrice, double change, double volume,
+            double turnover, double turnoverRate, double marketCapFlow, double marketCap,
+            bool stopRise, bool stopPlummet, double pe, double ps, double pcf, double pb,
+            double ma5, double ma10, double ma20, double ma30, double ma60)
+        {
+            Code = code;
+            Day = day;
+            Open = open;
+            High = high;
+            Low = low;
+            Close = close;
+            BackwardAdjustedPrice = backwardAdjustedPrice;
+            ForwardAdjustedPrice = forwardAdjustedPrice;
+            Change = change;
+            Volume = volume;
+            Turnover = turnover;
+            TurnoverRate = turnoverRate;
+            MarketCapFlow = marketCapFlow;
+            MarketCap = marketCap;
+            StopRise = stopRise;
+            StopPlummet = stopPlummet;
+            PE = pe;
+            PS = ps;
+            PCF = pcf;
+            PB = pb;
+            Ma5 = ma5;
+            Ma10 = ma10;
+            Ma20 = ma20;
+            Ma30 = ma30;
+            Ma60 = ma60;
+        }
     }
 }

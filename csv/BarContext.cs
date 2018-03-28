@@ -1,14 +1,16 @@
-﻿using System.IO;
+﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.IO;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
 namespace Tools.csv
 {
-    public sealed class BarContext:DbContext
+    public sealed class BarContext : DbContext
     {
         public DbSet<Bar> Bars { get; set; }
-        
+
         private static bool _created = false;
+
         public BarContext()
         {
             if (!_created)
